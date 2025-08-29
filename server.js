@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors({
-  origin: ['https://aarushic001403.github.io', 'https://backend-k6ko.onrender.com', 'http://localhost:5001'],
+  origin: ['https://aarushic001403.github.io', 'https://worker-management-system-backend-9aum.onrender.com', 'http://localhost:5001'],
   credentials: true
 }));
 app.use(bodyParser.json());
