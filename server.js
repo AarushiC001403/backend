@@ -4,10 +4,13 @@ const bodyParser = require('body-parser');
 const db = require('./config');
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['https://aarushic001403.github.io', 'https://backend-k6ko.onrender.com', 'http://localhost:5001'],
+  credentials: true
+}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -59,7 +62,7 @@ app.post('/api/workers', async (req, res) => {
       workerId: Worker_ID 
     });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to add worker', details: error.message });
   }
 });
@@ -77,7 +80,7 @@ app.put('/api/workers/:id', async (req, res) => {
     }
     res.json({ message: 'Worker updated successfully' });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to update worker', details: error.message });
   }
 });
@@ -91,7 +94,7 @@ app.delete('/api/workers/:id', async (req, res) => {
     }
     res.json({ message: 'Worker deleted successfully' });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to delete worker', details: error.message });
   }
 });
@@ -104,7 +107,7 @@ app.get('/api/trades', async (req, res) => {
     const [rows] = await db.execute('SELECT * FROM Trade_Master ORDER BY Trade_Code DESC');
     res.json(rows);
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to fetch trades', details: error.message });
   }
 });
@@ -122,7 +125,7 @@ app.post('/api/trades', async (req, res) => {
       tradeCode: result.insertId 
     });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to add trade', details: error.message });
   }
 });
@@ -140,7 +143,7 @@ app.put('/api/trades/:id', async (req, res) => {
     }
     res.json({ message: 'Trade updated successfully' });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to update trade', details: error.message });
   }
 });
@@ -154,7 +157,7 @@ app.delete('/api/trades/:id', async (req, res) => {
     }
     res.json({ message: 'Trade deleted successfully' });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to delete trade', details: error.message });
   }
 });
@@ -167,7 +170,7 @@ app.get('/api/trainings', async (req, res) => {
     const [rows] = await db.execute('SELECT * FROM Training_Master ORDER BY Training_Code DESC');
     res.json(rows);
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to fetch trainings', details: error.message });
   }
 });
@@ -185,7 +188,7 @@ app.post('/api/trainings', async (req, res) => {
       trainingCode: result.insertId 
     });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to add training', details: error.message });
   }
 });
@@ -203,7 +206,7 @@ app.put('/api/trainings/:id', async (req, res) => {
     }
     res.json({ message: 'Training updated successfully' });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to update training', details: error.message });
   }
 });
@@ -217,7 +220,7 @@ app.delete('/api/trainings/:id', async (req, res) => {
     }
     res.json({ message: 'Training deleted successfully' });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to delete training', details: error.message });
   }
 });
@@ -230,7 +233,7 @@ app.get('/api/departments', async (req, res) => {
     const [rows] = await db.execute('SELECT * FROM Department_Master ORDER BY Department_code DESC');
     res.json(rows);
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to fetch departments', details: error.message });
   }
 });
@@ -238,18 +241,34 @@ app.get('/api/departments', async (req, res) => {
 // Add new department
 app.post('/api/departments', async (req, res) => {
   try {
-    const { Department_code, Department_Name, Incharge, Max_Labour_Count } = req.body;
+    const { Department_code, Department_Name, Incharge } = req.body;
+    // Ensure numeric type for Max_Labour_Count to satisfy NOT NULL INT column
+    const maxLabourCountNumber = Number.parseInt(req.body.Max_Labour_Count, 10);
+    if (Number.isNaN(maxLabourCountNumber) || maxLabourCountNumber <= 0) {
+      return res.status(400).json({ error: 'Invalid Max_Labour_Count' });
+    }
+
     console.log('REQ BODY:', req.body);
-    const [result] = await db.execute(
-      'INSERT INTO Department_Master (Department_Code, Department_Name, Incharge, Max_Labour_Count) VALUES (?, ?, ?, ?)',
-      [Department_code, Department_Name, Incharge, Max_Labour_Count]
-    );
+
+    let result;
+    // If a Department_code was provided, attempt to insert with it; otherwise let DB auto-increment
+    if (Department_code && String(Department_code).trim() !== '') {
+      [result] = await db.execute(
+        'INSERT INTO Department_Master (Department_code, Department_Name, Incharge, Max_Labour_Count) VALUES (?, ?, ?, ?)',
+        [Department_code, Department_Name, Incharge, maxLabourCountNumber]
+      );
+    } else {
+      [result] = await db.execute(
+        'INSERT INTO Department_Master (Department_Name, Incharge, Max_Labour_Count) VALUES (?, ?, ?)',
+        [Department_Name, Incharge, maxLabourCountNumber]
+      );
+    }
     res.status(201).json({ 
       message: 'Department added successfully', 
       departmentCode: result.insertId 
     });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to add department', details: error.message });
   }
 });
@@ -267,7 +286,7 @@ app.put('/api/departments/:id', async (req, res) => {
     }
     res.json({ message: 'Department updated successfully' });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to update department', details: error.message });
   }
 });
@@ -281,7 +300,7 @@ app.delete('/api/departments/:id', async (req, res) => {
     }
     res.json({ message: 'Department deleted successfully' });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to delete department', details: error.message });
   }
 });
@@ -294,7 +313,7 @@ app.get('/api/trade-registers', async (req, res) => {
     const [rows] = await db.execute('SELECT * FROM Trade_Register ORDER BY Record_Date DESC');
     res.json(rows);
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to fetch trade registrations', details: error.message });
   }
 });
@@ -313,7 +332,7 @@ app.post('/api/trade-registers', async (req, res) => {
       id: result.insertId 
     });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to add trade registration', details: error.message });
   }
 });
@@ -341,6 +360,7 @@ app.put('/api/trade-registers/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to update trade registration', details: error.message });
   }
 });
+
 // Delete trade registration
 app.delete('/api/trade-registers/:id', async (req, res) => {
   try {
@@ -350,7 +370,7 @@ app.delete('/api/trade-registers/:id', async (req, res) => {
     }
     res.json({ message: 'Trade registration deleted successfully' });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to delete trade registration', details: error.message });
   }
 });
@@ -422,7 +442,7 @@ app.put('/api/trade-registers/:id/incomplete-alert', async (req, res) => {
       [req.params.id, recordDate]
     );
     if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Trade registration not found' });
+      return res.status(404).json({ error: 'Trade registration alert marked as incomplete' });
     }
     res.json({ message: 'Trade registration alert marked as incomplete' });
   } catch (error) {
@@ -439,7 +459,7 @@ app.get('/api/training-registers', async (req, res) => {
     const [rows] = await db.execute('SELECT * FROM Training_Register ORDER BY Record_Date DESC');
     res.json(rows);
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to fetch training registrations', details: error.message });
   }
 });
@@ -457,7 +477,7 @@ app.post('/api/training-registers', async (req, res) => {
       id: result.insertId 
     });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to add training registration', details: error.message });
   }
 });
@@ -490,7 +510,7 @@ app.delete('/api/training-registers/:id', async (req, res) => {
     }
     res.json({ message: 'Training registration deleted successfully' });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to delete training registration', details: error.message });
   }
 });
@@ -562,7 +582,7 @@ app.put('/api/training-registers/:id/incomplete-alert', async (req, res) => {
       [req.params.id, recordDate]
     );
     if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Training registration not found' });
+      return res.status(404).json({ error: 'Training registration alert marked as incomplete' });
     }
     res.json({ message: 'Training registration alert marked as incomplete' });
   } catch (error) {
@@ -579,7 +599,7 @@ app.get('/api/users', async (req, res) => {
     const [rows] = await db.execute('SELECT ID, UserName, Role, Status FROM User_Master ORDER BY ID DESC');
     res.json(rows);
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to fetch users', details: error.message });
   }
 });
@@ -597,7 +617,7 @@ app.post('/api/users', async (req, res) => {
       userId: result.insertId 
     });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to add user', details: error.message });
   }
 });
@@ -615,7 +635,7 @@ app.put('/api/users/:id', async (req, res) => {
     }
     res.json({ message: 'User updated successfully' });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to update user', details: error.message });
   }
 });
@@ -629,13 +649,27 @@ app.delete('/api/users/:id', async (req, res) => {
     }
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
-    console.error(error); // <-- Add this for debugging!
+    console.error(error);
     res.status(500).json({ error: 'Failed to delete user', details: error.message });
   }
 });
 
 // Start server
+// Basic root route
+app.get('/', (_req, res) => {
+  res.send('Worker Management API. Try /api/health');
+});
+
+// Health check with DB connectivity
+app.get('/api/health', async (_req, res) => {
+  try {
+    const [rows] = await db.execute('SELECT 1 AS ok');
+    res.json({ ok: true, data: rows[0] });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
-  //console.log(`Database: ${dbConfig.database}`);
-}); 
+});
